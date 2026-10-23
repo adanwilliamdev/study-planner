@@ -102,11 +102,9 @@ study-planner/
 ### 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/SEU-USUARIO/study-planner.git
+git clone https://github.com/adanwilliamdev/study-planner.git
 cd study-planner
 ```
-
-Substitua `SEU-USUARIO` pelo seu usuário do GitHub.
 
 ### 2. Executar o backend
 
