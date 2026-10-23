@@ -53,6 +53,12 @@ export function rotuloPrazo(str) {
 
 export const hhmm = (t) => (t ? t.slice(0, 5) : '')
 
+/** "08:30" -> minutos desde a meia-noite. */
+export const minutos = (t) => {
+  const [h, m] = hhmm(t).split(':').map(Number)
+  return h * 60 + m
+}
+
 export function dataPorExtenso(date = new Date()) {
   return date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 }

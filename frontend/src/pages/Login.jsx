@@ -5,6 +5,7 @@ import { login } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 import { mensagemDeErro } from '../lib/erros'
 import AuthShell from '../components/AuthShell'
+import CampoSenha from '../components/CampoSenha'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -34,10 +35,10 @@ export default function Login() {
     <AuthShell
       titulo="Entrar"
       subtitulo="Acesse seu planejador de estudos."
-      rodape={<>Não tem conta? <Link to="/register" className="font-semibold text-brand-600 hover:underline">Criar conta</Link></>}
+      rodape={<>Não tem conta? <Link to="/register" className="font-semibold text-link hover:underline">Criar conta</Link></>}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {erro && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+        {erro && <p role="alert" className="rounded-xl bg-bad-bg px-3.5 py-2.5 text-sm text-bad-fg">{erro}</p>}
         <div>
           <label htmlFor="email" className="field-label">E-mail</label>
           <input id="email" type="email" autoComplete="email" value={email} required autoFocus
@@ -45,10 +46,10 @@ export default function Login() {
         </div>
         <div>
           <label htmlFor="senha" className="field-label">Senha</label>
-          <input id="senha" type="password" autoComplete="current-password" value={senha} required
-            onChange={e => setSenha(e.target.value)} className="field" />
+          <CampoSenha id="senha" autoComplete="current-password" value={senha} required
+            onChange={e => setSenha(e.target.value)} />
         </div>
-        <button className="btn-primary w-full" disabled={enviando}>
+        <button className="btn-primary w-full py-3" disabled={enviando}>
           {enviando && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
           {enviando ? 'Entrando…' : 'Entrar'}
         </button>

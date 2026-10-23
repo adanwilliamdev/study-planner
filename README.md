@@ -21,6 +21,7 @@ Aplicação full-stack para organização da rotina de estudos, com autenticaç�
 - **Notificações em tempo real:** alertas de tarefas próximas do vencimento via WebSocket.
 - **Materiais de estudo:** associação de PDFs, links e resumos às matérias.
 - **Dashboard:** visão geral da rotina e das atividades.
+- **Tema claro e escuro:** segue o sistema e pode ser trocado pelo botão na barra lateral.
 
 ## 🛠️ Stack Tecnológica
 

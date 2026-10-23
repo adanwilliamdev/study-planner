@@ -3,12 +3,23 @@
 <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#2C43C9" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#F3F4FA" />
+    <meta name="color-scheme" content="light dark" />
     <title>Study Planner</title>
+    <script>
+      // Aplica o tema salvo antes da primeira pintura para não piscar.
+      (function () {
+        try {
+          var tema = localStorage.getItem('sp-tema')
+          if (!tema) tema = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+          if (tema === 'dark') document.documentElement.classList.add('dark')
+        } catch (e) {}
+      })()
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..700&display=swap" rel="stylesheet" />
 </head>
 <body>
 <div id="root"></div>

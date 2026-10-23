@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { mensagemDeErro } from '../lib/erros'
 import AuthShell from '../components/AuthShell'
+import CampoSenha from '../components/CampoSenha'
 
 export default function Register() {
   const [form, setForm] = useState({ nome: '', email: '', senha: '' })
@@ -38,10 +39,10 @@ export default function Register() {
     <AuthShell
       titulo="Criar conta"
       subtitulo="Comece a organizar seus estudos."
-      rodape={<>Já tem conta? <Link to="/login" className="font-semibold text-brand-600 hover:underline">Entrar</Link></>}
+      rodape={<>Já tem conta? <Link to="/login" className="font-semibold text-link hover:underline">Entrar</Link></>}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {erro && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+        {erro && <p role="alert" className="rounded-xl bg-bad-bg px-3.5 py-2.5 text-sm text-bad-fg">{erro}</p>}
         <div>
           <label htmlFor="nome" className="field-label">Nome</label>
           <input id="nome" autoComplete="name" value={form.nome} required maxLength={100} autoFocus
@@ -54,11 +55,11 @@ export default function Register() {
         </div>
         <div>
           <label htmlFor="senha" className="field-label">Senha</label>
-          <input id="senha" type="password" autoComplete="new-password" value={form.senha} required
-            minLength={6} maxLength={72} onChange={set('senha')} className="field" aria-describedby="dica-senha" />
+          <CampoSenha id="senha" autoComplete="new-password" value={form.senha} required
+            minLength={6} maxLength={72} onChange={set('senha')} aria-describedby="dica-senha" />
           <p id="dica-senha" className="mt-1 text-xs text-ink-mute">Mínimo de 6 caracteres.</p>
         </div>
-        <button className="btn-primary w-full" disabled={enviando}>
+        <button className="btn-primary w-full py-3" disabled={enviando}>
           {enviando && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
           {enviando ? 'Criando…' : 'Criar conta'}
         </button>

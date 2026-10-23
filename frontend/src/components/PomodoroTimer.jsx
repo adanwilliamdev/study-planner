@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react'
+import Segmented from './Segmented'
 
 const MODOS = {
-  foco: { rotulo: 'Foco', minutos: 25, cor: '#2C43C9' },
-  pausa: { rotulo: 'Pausa curta', minutos: 5, cor: '#059669' },
-  longa: { rotulo: 'Pausa longa', minutos: 15, cor: '#059669' },
+  foco: { rotulo: 'Foco', minutos: 25, cor: '#FFD04A' },
+  pausa: { rotulo: 'Pausa curta', minutos: 5, cor: '#5EE0B5' },
+  longa: { rotulo: 'Pausa longa', minutos: 15, cor: '#5EE0B5' },
 }
+const OPCOES = Object.entries(MODOS).map(([chave, m]) => [chave, m.rotulo])
 const R = 54
 const CIRC = 2 * Math.PI * R
 
@@ -14,7 +16,19 @@ const fmt = (ms) => {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
-export default function PomodoroTimer({ onFocoConcluido }) {
+// Cada dígito ocupa uma largura fixa, então o relógio não "pula" a cada segundo
+function Digitos({ texto }) {
+  return (
+    <span className="inline-flex items-baseline font-display text-[3.5rem] font-bold leading-none"
+          role="timer" aria-live="off" aria-label={texto}>
+      {texto.split('').map((c, i) => (c === ':'
+        ? <span key={i} className="mx-0.5 -translate-y-1 opacity-60" aria-hidden="true">:</span>
+        : <span key={i} className="inline-block w-[0.62em] text-center" aria-hidden="true">{c}</span>))}
+    </span>
+  )
+}
+
+export default function PomodoroTimer({ onFocoConcluido, className = '' }) {
   const [modo, setModo] = useState('foco')
   const [restante, setRestante] = useState(MODOS.foco.minutos * 60000)
   const [ativo, setAtivo] = useState(false)
@@ -66,36 +80,49 @@ export default function PomodoroTimer({ onFocoConcluido }) {
 
   const progresso = 1 - restante / total
   const cor = MODOS[modo].cor
+  const naRodada = modo === 'longa' ? 4 : ciclos % 4
+  const rotuloPlay = ativo ? 'Pausar' : restante < total ? 'Continuar' : 'Iniciar'
 
   return (
-    <section className="panel flex flex-col items-center p-6" aria-label="Timer Pomodoro">
-      <div className="mb-4 flex rounded-lg bg-paper p-1 text-sm font-semibold" role="group" aria-label="Modo">
-        {Object.entries(MODOS).map(([chave, m]) => (
-          <button key={chave} onClick={() => irPara(chave)} aria-pressed={modo === chave}
-            className={`rounded-md px-3 py-1 transition-colors ${modo === chave ? 'bg-white text-ink shadow-sm' : 'text-ink-mute hover:text-ink'}`}>
-            {m.rotulo}
-          </button>
-        ))}
-      </div>
+    <section className={`flex flex-col items-center rounded-3xl bg-deep p-6 text-white shadow-pop ring-1 ring-white/10 ${className}`}
+             aria-label="Timer Pomodoro">
+      <Segmented opcoes={OPCOES} valor={modo} onChange={irPara} rotulo="Modo" variante="escuro" compacto />
 
-      <div className="relative h-44 w-44">
-        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90" aria-hidden="true">
-          <circle cx="60" cy="60" r={R} fill="none" stroke="#E2E5EF" strokeWidth="8" />
-          <circle cx="60" cy="60" r={R} fill="none" stroke={cor} strokeWidth="8" strokeLinecap="round"
-            strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - progresso)} />
+      <div className="relative mt-7 h-56 w-56">
+        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90 overflow-visible" aria-hidden="true">
+          <circle cx="60" cy="60" r={R} fill="none" stroke="rgb(255 255 255 / .1)" strokeWidth="6" />
+          <circle cx="60" cy="60" r={R} fill="none" stroke={cor} strokeWidth="6" strokeLinecap="round"
+            strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - progresso)}
+            style={{ transition: 'stroke-dashoffset .3s linear, stroke .4s ease', filter: `drop-shadow(0 0 6px ${cor}88)` }} />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-display text-4xl font-bold tabular-nums" role="timer" aria-live="off">{fmt(restante)}</span>
-          <span className="text-xs text-ink-mute">{ciclos} {ciclos === 1 ? 'foco concluído' : 'focos concluídos'}</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+          <Digitos texto={fmt(restante)} />
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="flex gap-1.5" aria-hidden="true">
+              {[0, 1, 2, 3].map(i => (
+                <span key={i} className="h-1.5 w-1.5 rounded-full transition-colors duration-500"
+                      style={{ backgroundColor: i < naRodada ? cor : 'rgb(255 255 255 / .22)' }} />
+              ))}
+            </span>
+            <span className="text-xs text-white/65">{ciclos} {ciclos === 1 ? 'foco concluído' : 'focos concluídos'}</span>
+          </div>
         </div>
       </div>
 
-      <div className="mt-5 flex items-center gap-3">
-        <button onClick={() => irPara(modo)} className="icon-btn h-10 w-10" aria-label="Reiniciar"><RotateCcw size={18} /></button>
-        <button onClick={() => setAtivo(a => !a)} className="btn-primary h-12 min-w-[7.5rem] text-base">
-          {ativo ? <><Pause size={18} /> Pausar</> : <><Play size={18} /> {restante < total ? 'Continuar' : 'Iniciar'}</>}
+      <div className="mt-7 flex items-center gap-3">
+        <button onClick={() => irPara(modo)} aria-label="Reiniciar"
+          className="grid h-11 w-11 place-items-center rounded-full text-white/70 transition duration-200 hover:bg-white/10 hover:text-white active:scale-90">
+          <RotateCcw size={18} />
         </button>
-        <button onClick={pular} className="icon-btn h-10 w-10" aria-label="Pular para a próxima etapa"><SkipForward size={18} /></button>
+        <button onClick={() => setAtivo(a => !a)}
+          className="inline-flex h-14 min-w-[9.5rem] items-center justify-center gap-2 rounded-full text-base font-bold text-deep transition duration-300 ease-fluid hover:brightness-110 active:scale-95"
+          style={{ backgroundColor: cor, boxShadow: `0 10px 28px -10px ${cor}` }}>
+          {ativo ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />} {rotuloPlay}
+        </button>
+        <button onClick={pular} aria-label="Pular para a próxima etapa"
+          className="grid h-11 w-11 place-items-center rounded-full text-white/70 transition duration-200 hover:bg-white/10 hover:text-white active:scale-90">
+          <SkipForward size={18} />
+        </button>
       </div>
     </section>
   )

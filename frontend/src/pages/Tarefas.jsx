@@ -1,21 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Circle, CheckCircle2, ListChecks, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ListChecks, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { listarTarefas, criarTarefa, atualizarTarefa, deletarTarefa } from '../services/tarefaService'
 import { listarMaterias } from '../services/materiaService'
 import { Cabecalho, Carregando, ErroCarregar, Vazio } from '../components/Estados'
 import Modal from '../components/Modal'
+import Segmented from '../components/Segmented'
 import { useToast } from '../context/ToastContext'
 import { useConfirm } from '../context/ConfirmContext'
 import { mensagemDeErro } from '../lib/erros'
 import { rotuloPrazo } from '../lib/datas'
 
 const PRIORIDADES = { ALTA: 'Alta', MEDIA: 'Média', BAIXA: 'Baixa' }
-const PRIO_COR = { ALTA: 'bg-red-50 text-red-700', MEDIA: 'bg-amber-50 text-amber-800', BAIXA: 'bg-emerald-50 text-emerald-700' }
+const PRIO_COR = { ALTA: 'tone-bad', MEDIA: 'tone-warn', BAIXA: 'tone-ok' }
 const STATUS = { A_FAZER: 'A fazer', EM_ANDAMENTO: 'Em andamento', CONCLUIDO: 'Concluída' }
-const PRAZO_COR = {
-  atrasada: 'bg-red-50 text-red-700', urgente: 'bg-amber-50 text-amber-800',
-  proxima: 'bg-brand-50 text-brand-700', normal: 'bg-paper text-ink-soft',
-}
+const PRAZO_COR = { atrasada: 'tone-bad', urgente: 'tone-warn', proxima: 'tone-brand', normal: 'tone-neutral' }
 const FILTROS = [
   ['ABERTAS', 'Abertas'], ['EM_ANDAMENTO', 'Em andamento'], ['CONCLUIDO', 'Concluídas'], ['TODAS', 'Todas'],
 ]
@@ -49,9 +47,9 @@ function FormTarefa({ inicial, materias, onSalvar, onCancelar, rotuloBotao }) {
       </div>
       <div>
         <label htmlFor="t-desc" className="field-label">Descrição</label>
-        <textarea id="t-desc" rows={2} className="field" value={form.descricao} onChange={set('descricao')} maxLength={1000} />
+        <textarea id="t-desc" rows={2} className="field resize-none" value={form.descricao} onChange={set('descricao')} maxLength={1000} />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="t-data" className="field-label">Prazo</label>
           <input id="t-data" type="date" className="field" value={form.dataEntrega} onChange={set('dataEntrega')} />
@@ -76,13 +74,29 @@ function FormTarefa({ inicial, materias, onSalvar, onCancelar, rotuloBotao }) {
           </select>
         </div>
       </div>
-      <div className="flex justify-end gap-2 pt-1">
+      <div className="flex justify-end gap-2 pt-2">
         <button type="button" className="btn-ghost" onClick={onCancelar}>Cancelar</button>
         <button className="btn-primary" disabled={salvando}>
-          {salvando && <Loader2 size={16} className="animate-spin" />} {rotuloBotao}
+          {salvando && <Loader2 size={16} className="animate-spin" aria-hidden="true" />} {rotuloBotao}
         </button>
       </div>
     </form>
+  )
+}
+
+/** Botão de conclusão: o círculo enche e o "visto" é desenhado. */
+function Marca({ feita, onClick, rotulo }) {
+  return (
+    <button onClick={onClick} aria-label={rotulo} aria-pressed={feita}
+      className="group/marca -m-1 mt-0 grid h-8 w-8 shrink-0 place-items-center rounded-full">
+      <span className={`grid h-6 w-6 place-items-center rounded-full border-2 transition-all duration-300 ease-spring ${
+        feita ? 'scale-100 border-ok-icon bg-ok-icon' : 'border-ink-mute/50 group-hover/marca:scale-110 group-hover/marca:border-brand-500'}`}>
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-white dark:text-deep" aria-hidden="true">
+          <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"
+            pathLength="1" style={{ strokeDasharray: 1, strokeDashoffset: feita ? 0 : 1, transition: 'stroke-dashoffset .4s cubic-bezier(.22,1,.36,1) .08s' }} />
+        </svg>
+      </span>
+    </button>
   )
 }
 
@@ -95,6 +109,21 @@ export default function Tarefas() {
   const [modal, setModal] = useState(null) // null | { tarefa?: obj }
   const [filtro, setFiltro] = useState('ABERTAS')
   const [filtroMateria, setFiltroMateria] = useState('')
+  // id -> 'fica' | 'sai': tarefas que acabaram de mudar e ainda animam antes de sair da lista
+  const [recentes, setRecentes] = useState({})
+  const timers = useRef({})
+
+  useEffect(() => () => Object.values(timers.current).flat().forEach(clearTimeout), [])
+  const agendar = (id, fn, ms) => {
+    const lista = timers.current[id] || []
+    lista.push(setTimeout(fn, ms))
+    timers.current[id] = lista
+  }
+  const limparTimers = (id) => {
+    const lista = timers.current[id] || []
+    lista.forEach(clearTimeout)
+    timers.current[id] = []
+  }
 
   const carregar = useCallback(() => {
     setErro('')
@@ -106,10 +135,11 @@ export default function Tarefas() {
 
   const visiveis = useMemo(() => (tarefas || []).filter(t => {
     if (filtroMateria && String(t.materia?.id) !== filtroMateria) return false
+    if (recentes[t.id]) return true
     if (filtro === 'ABERTAS') return t.status !== 'CONCLUIDO'
     if (filtro === 'TODAS') return true
     return t.status === filtro
-  }), [tarefas, filtro, filtroMateria])
+  }), [tarefas, filtro, filtroMateria, recentes])
 
   const salvar = async (form) => {
     const edicao = modal?.tarefa
@@ -123,33 +153,45 @@ export default function Tarefas() {
   }
 
   const mudarStatus = async (t, novo) => {
-    try { await atualizarTarefa(t.id, paraPayload({ ...paraForm(t), status: novo })); carregar() }
-    catch (err) { toast.erro(mensagemDeErro(err)) }
+    try {
+      await atualizarTarefa(t.id, paraPayload({ ...paraForm(t), status: novo }))
+      setTarefas(ts => ts.map(x => (x.id === t.id ? { ...x, status: novo } : x)))
+      const continuaNoFiltro = filtro === 'TODAS' || (filtro === 'ABERTAS' ? novo !== 'CONCLUIDO' : filtro === novo)
+      if (continuaNoFiltro) { carregar(); return }
+      // Sai do filtro atual: deixa o risco desenhar e só então recolhe a linha
+      limparTimers(t.id)
+      setRecentes(r => ({ ...r, [t.id]: 'fica' }))
+      agendar(t.id, () => setRecentes(r => (r[t.id] ? { ...r, [t.id]: 'sai' } : r)), 900)
+      agendar(t.id, () => {
+        setRecentes(r => { const { [t.id]: _saiu, ...resto } = r; return resto })
+        carregar()
+      }, 1250)
+    } catch (err) { toast.erro(mensagemDeErro(err)) }
   }
 
   const remover = async (t) => {
     if (!(await confirmar({ titulo: 'Excluir tarefa', mensagem: `Excluir "${t.titulo}"?`, acao: 'Excluir' }))) return
-    try { await deletarTarefa(t.id); toast.sucesso('Tarefa excluída'); carregar() }
-    catch (err) { toast.erro(mensagemDeErro(err)) }
+    try {
+      await deletarTarefa(t.id)
+      toast.sucesso('Tarefa excluída')
+      limparTimers(t.id)
+      setRecentes(r => ({ ...r, [t.id]: 'sai' }))
+      agendar(t.id, () => carregar(), 320)
+    } catch (err) { toast.erro(mensagemDeErro(err)) }
   }
+
+  const novaTarefa = (
+    <button className="btn-primary" onClick={() => setModal({})}><Plus size={16} aria-hidden="true" /> Nova tarefa</button>
+  )
 
   return (
     <div>
-      <Cabecalho titulo="Tarefas">
-        <button className="btn-primary" onClick={() => setModal({})}><Plus size={16} /> Nova tarefa</button>
-      </Cabecalho>
+      <Cabecalho titulo="Tarefas">{novaTarefa}</Cabecalho>
 
-      {erro ? <ErroCarregar mensagem={erro} onTentar={carregar} /> : !tarefas ? <Carregando /> : (
+      {erro ? <ErroCarregar mensagem={erro} onTentar={carregar} /> : !tarefas ? <Carregando tipo="lista" /> : (
         <>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-1 rounded-lg bg-white p-1 shadow-panel ring-1 ring-line" role="group" aria-label="Filtrar por status">
-              {FILTROS.map(([v, r]) => (
-                <button key={v} onClick={() => setFiltro(v)} aria-pressed={filtro === v}
-                  className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${filtro === v ? 'bg-brand-600 text-white' : 'text-ink-soft hover:bg-paper'}`}>
-                  {r}
-                </button>
-              ))}
-            </div>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <Segmented opcoes={FILTROS} valor={filtro} onChange={setFiltro} rotulo="Filtrar por status" />
             {materias.length > 0 && (
               <select className="field w-auto" aria-label="Filtrar por matéria" value={filtroMateria}
                 onChange={e => setFiltroMateria(e.target.value)}>
@@ -161,40 +203,49 @@ export default function Tarefas() {
 
           {visiveis.length === 0 ? (
             tarefas.length === 0 ? (
-              <Vazio icone={ListChecks} titulo="Nenhuma tarefa ainda">Crie sua primeira tarefa para acompanhar prazos e prioridades.</Vazio>
+              <Vazio icone={ListChecks} titulo="Nenhuma tarefa ainda" acao={novaTarefa}>
+                Crie sua primeira tarefa para acompanhar prazos e prioridades.
+              </Vazio>
             ) : (
               <Vazio icone={ListChecks} titulo="Nada por aqui">Nenhuma tarefa corresponde aos filtros selecionados.</Vazio>
             )
           ) : (
-            <ul className="space-y-2">
+            <ul>
               {visiveis.map(t => {
                 const feita = t.status === 'CONCLUIDO'
                 const prazo = !feita && rotuloPrazo(t.dataEntrega)
+                const saindo = recentes[t.id] === 'sai'
                 return (
-                  <li key={t.id} className="panel flex items-start gap-3 p-3.5">
-                    <button className="mt-0.5 shrink-0 text-ink-mute hover:text-brand-600"
-                      onClick={() => mudarStatus(t, feita ? 'A_FAZER' : 'CONCLUIDO')}
-                      aria-label={feita ? `Reabrir ${t.titulo}` : `Concluir ${t.titulo}`}>
-                      {feita ? <CheckCircle2 size={22} className="text-emerald-600" /> : <Circle size={22} />}
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <p className={`font-semibold ${feita ? 'text-ink-mute line-through' : ''}`}>{t.titulo}</p>
-                      {t.descricao && <p className="mt-0.5 text-sm text-ink-soft">{t.descricao}</p>}
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        {t.materia && (
-                          <span className="chip bg-paper text-ink-soft">
-                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: t.materia.cor }} aria-hidden="true" />
-                            {t.materia.nome}
-                          </span>
-                        )}
-                        <span className={`chip ${PRIO_COR[t.prioridade]}`}>Prioridade {PRIORIDADES[t.prioridade].toLowerCase()}</span>
-                        {prazo && <span className={`chip ${PRAZO_COR[prazo.tom]}`}>{prazo.texto}</span>}
-                        {!feita && t.status === 'EM_ANDAMENTO' && <span className="chip bg-brand-50 text-brand-700">Em andamento</span>}
+                  <li key={t.id}
+                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-fluid ${saindo ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'}`}>
+                    <div className="-mx-1 -mt-1 min-h-0 overflow-hidden px-1 pt-1">
+                      <div className="pb-2.5">
+                        <div className="panel panel-flat flex items-start gap-3.5 p-4">
+                          <Marca feita={feita} onClick={() => mudarStatus(t, feita ? 'A_FAZER' : 'CONCLUIDO')}
+                            rotulo={feita ? `Reabrir ${t.titulo}` : `Concluir ${t.titulo}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold leading-snug">
+                              <span className={`strike ${feita ? 'is-done text-ink-mute' : ''}`}>{t.titulo}</span>
+                            </p>
+                            {t.descricao && <p className={`mt-1 text-sm ${feita ? 'text-ink-mute' : 'text-ink-soft'}`}>{t.descricao}</p>}
+                            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                              {t.materia && (
+                                <span className="chip tone-neutral">
+                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: t.materia.cor }} aria-hidden="true" />
+                                  {t.materia.nome}
+                                </span>
+                              )}
+                              <span className={`chip ${PRIO_COR[t.prioridade]}`}>Prioridade {PRIORIDADES[t.prioridade].toLowerCase()}</span>
+                              {prazo && <span className={`chip ${PRAZO_COR[prazo.tom]}`}>{prazo.texto}</span>}
+                              {!feita && t.status === 'EM_ANDAMENTO' && <span className="chip tone-brand">Em andamento</span>}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 gap-0.5">
+                            <button className="icon-btn" onClick={() => setModal({ tarefa: t })} aria-label={`Editar ${t.titulo}`}><Pencil size={16} /></button>
+                            <button className="icon-btn-danger" onClick={() => remover(t)} aria-label={`Excluir ${t.titulo}`}><Trash2 size={16} /></button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex shrink-0">
-                      <button className="icon-btn" onClick={() => setModal({ tarefa: t })} aria-label={`Editar ${t.titulo}`}><Pencil size={16} /></button>
-                      <button className="icon-btn-danger" onClick={() => remover(t)} aria-label={`Excluir ${t.titulo}`}><Trash2 size={16} /></button>
                     </div>
                   </li>
                 )
