@@ -19,7 +19,8 @@ public class NotificationScheduler {
     public void checkTarefasVencendo() {
         LocalDate hoje = LocalDate.now();
         LocalDate amanha = hoje.plusDays(1);
-        List<Tarefa> tarefas = tarefaRepository.findTarefasVencendo(hoje, amanha);
+        List<Tarefa> tarefas = tarefaRepository.findTarefasVencendo(
+                hoje, amanha, Tarefa.StatusTarefa.CONCLUIDO);
         for (Tarefa t : tarefas) {
             String msg = String.format("⚠️ Tarefa '%s' vence em %s", t.getTitulo(), t.getDataEntrega());
             messagingTemplate.convertAndSend("/topic/notifications", msg);
