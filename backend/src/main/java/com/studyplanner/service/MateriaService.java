@@ -1,41 +1,75 @@
 package com.studyplanner.service;
 
+import com.studyplanner.dto.MateriaRequest;
+import com.studyplanner.dto.MateriaResponse;
 import com.studyplanner.entity.Materia;
-import com.studyplanner.entity.Usuario;
-import com.studyplanner.repository.MateriaRepository;
-import com.studyplanner.repository.UsuarioRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.studyplanner.exception.RecursoNaoEncontradoException;
+import com.studyplanner.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
 public class MateriaService {
 
-    @Autowired private MateriaRepository materiaRepository;
-    @Autowired private UsuarioRepository usuarioRepository;
+    private static final String COR_PADRAO = "#3b82f6";
 
-    private Usuario usuarioLogado(String email) {
-        return usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+    private final MateriaRepository materiaRepository;
+    private final TarefaRepository tarefaRepository;
+    private final CronogramaRepository cronogramaRepository;
+    private final MaterialRepository materialRepository;
+    private final UsuarioAtualService usuarioAtual;
+
+    public MateriaService(MateriaRepository materiaRepository, TarefaRepository tarefaRepository,
+                          CronogramaRepository cronogramaRepository, MaterialRepository materialRepository,
+                          UsuarioAtualService usuarioAtual) {
+        this.materiaRepository = materiaRepository;
+        this.tarefaRepository = tarefaRepository;
+        this.cronogramaRepository = cronogramaRepository;
+        this.materialRepository = materialRepository;
+        this.usuarioAtual = usuarioAtual;
     }
 
-    public List<Materia> listar(String email) {
-        return materiaRepository.findByUsuarioId(usuarioLogado(email).getId());
+    /** Busca a materia garantindo que pertence ao usuario (usado tambem pelos outros services). */
+    Materia buscarDoUsuario(Long id, Long usuarioId) {
+        return materiaRepository.findByIdAndUsuarioId(id, usuarioId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Matéria não encontrada"));
     }
 
-    public Materia criar(Materia materia, String email) {
-        materia.setUsuario(usuarioLogado(email));
-        return materiaRepository.save(materia);
+    @Transactional(readOnly = true)
+    public List<MateriaResponse> listar(String email) {
+        return materiaRepository.findByUsuarioIdOrderByNomeAsc(usuarioAtual.obter(email).getId())
+                .stream().map(MateriaResponse::de).toList();
     }
 
-    public Materia atualizar(Long id, Materia dados) {
-        Materia m = materiaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Matéria não encontrada"));
-        m.setNome(dados.getNome());
-        m.setCor(dados.getCor());
-        m.setCargaHoraria(dados.getCargaHoraria());
-        return materiaRepository.save(m);
+    @Transactional
+    public MateriaResponse criar(MateriaRequest req, String email) {
+        Materia m = Materia.builder()
+                .nome(req.nome().trim())
+                .cor(req.cor() != null ? req.cor() : COR_PADRAO)
+                .cargaHoraria(req.cargaHoraria() != null ? req.cargaHoraria() : 0)
+                .usuario(usuarioAtual.obter(email))
+                .build();
+        return MateriaResponse.de(materiaRepository.save(m));
     }
 
-    public void deletar(Long id) { materiaRepository.deleteById(id); }
+    @Transactional
+    public MateriaResponse atualizar(Long id, MateriaRequest req, String email) {
+        Materia m = buscarDoUsuario(id, usuarioAtual.obter(email).getId());
+        m.setNome(req.nome().trim());
+        m.setCor(req.cor() != null ? req.cor() : COR_PADRAO);
+        m.setCargaHoraria(req.cargaHoraria() != null ? req.cargaHoraria() : 0);
+        return MateriaResponse.de(materiaRepository.save(m));
+    }
+
+    /** Remove a materia e tudo que depende dela (evita erro de chave estrangeira). */
+    @Transactional
+    public void deletar(Long id, String email) {
+        Materia m = buscarDoUsuario(id, usuarioAtual.obter(email).getId());
+        tarefaRepository.deleteByMateriaId(m.getId());
+        cronogramaRepository.deleteByMateriaId(m.getId());
+        materialRepository.deleteByMateriaId(m.getId());
+        materiaRepository.delete(m);
+    }
 }

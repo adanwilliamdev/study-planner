@@ -24,5 +24,6 @@ public class Usuario {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "usuario_roles", joinColumns = @JoinColumn(name = "usuario_id"))
     @Column(name = "role")
-    private Set<String> roles; // ROLE_USER, ROLE_ADMIN
+    @Builder.Default
+    private Set<String> roles = new java.util.HashSet<>(); // ROLE_USER, ROLE_ADMIN
 }

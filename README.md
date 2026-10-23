@@ -151,14 +151,23 @@ spring.datasource.username=sa
 spring.datasource.password=
 
 spring.jpa.hibernate.ddl-auto=update
+spring.jpa.open-in-view=false
 
-app.jwt.secret=${JWT_SECRET}
+app.jwt.secret=${JWT_SECRET:dev-only-secret-change-me-please-0123456789}
 app.jwt.expiration-ms=86400000
+app.cors.allowed-origins=${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
 springdoc.swagger-ui.path=/swagger-ui.html
 ```
 
-Configure a variável de ambiente `JWT_SECRET` com uma chave forte antes de executar a aplicação.
+Variáveis de ambiente:
+
+| Variável | Descrição |
+|---|---|
+| `JWT_SECRET` | Chave de assinatura do JWT, **mínimo de 32 caracteres**. O valor padrão serve apenas para desenvolvimento local. |
+| `CORS_ALLOWED_ORIGINS` | Origens permitidas, separadas por vírgula (padrão: `http://localhost:5173`). |
+
+No frontend, `VITE_API_URL` e `VITE_WS_URL` (veja `frontend/.env.example`) permitem apontar para outro backend.
 
 **Documentação da API:**
 
@@ -173,11 +182,15 @@ Configure a variável de ambiente `JWT_SECRET` com uma chave forte antes de exec
 | POST | `/api/auth/login` | Autenticação e emissão de JWT |
 | GET | `/api/materias` | Listagem de matérias |
 | POST | `/api/materias` | Cadastro de matéria |
+| PUT / DELETE | `/api/materias/{id}` | Edição / exclusão (remove também tarefas, sessões e materiais da matéria) |
 | GET | `/api/tarefas` | Listagem de tarefas |
-| POST | `/api/tarefas` | Cadastro de tarefa |
+| POST | `/api/tarefas` | Cadastro de tarefa (`materiaId` opcional no corpo) |
+| PUT / DELETE | `/api/tarefas/{id}` | Edição / exclusão |
 | GET | `/api/cronogramas` | Consulta do cronograma |
-| POST | `/api/cronogramas` | Criação de sessão de estudo |
+| POST | `/api/cronogramas` | Criação de sessão de estudo (`materiaId`, `diaDaSemana`, `horarioInicio`, `horarioFim` no corpo) |
+| PUT | `/api/cronogramas/{id}/concluir` | Marca a sessão como concluída |
 | GET | `/api/materiais/materia/{materiaId}` | Materiais de uma matéria |
+| POST | `/api/materiais` | Cadastro de material (`materiaId` no corpo) |
 
 As rotas protegidas exigem um token JWT no cabeçalho:
 
@@ -185,14 +198,18 @@ As rotas protegidas exigem um token JWT no cabeçalho:
 Authorization: Bearer <token>
 ```
 
-O WebSocket utiliza o endpoint `/ws` e o tópico `/topic/notifications` para comunicação de notificações.
+Erros são devolvidos em JSON no formato `{ "message": "...", "errors": { "campo": "..." } }`.
+
+O WebSocket utiliza o endpoint `/ws`. O frame STOMP `CONNECT` deve levar o cabeçalho `Authorization: Bearer <token>`, e as notificações de prazo são entregues individualmente em `/user/queue/notifications`.
 
 ## 🔒 Segurança
 
 - Autenticação baseada em JWT.
 - Senhas armazenadas com BCrypt.
 - Rotas protegidas por autenticação e autorização.
-- Isolamento dos dados por usuário.
+- Isolamento dos dados por usuário: toda leitura, edição e exclusão confere o dono do recurso.
+- Validação de entrada (Bean Validation) e links de materiais restritos a `http(s)`.
+- WebSocket autenticado por JWT, com notificações enviadas apenas ao dono da tarefa.
 - Configuração de CORS para o frontend.
 - Segredos configuráveis por variáveis de ambiente.
 
@@ -203,7 +220,6 @@ O WebSocket utiliza o endpoint `/ws` e o tópico `/topic/notifications` para com
 - [ ] Migração do H2 para PostgreSQL.
 - [ ] Testes unitários e de integração.
 - [ ] Docker Compose.
-- [ ] Autorização individual das notificações WebSocket.
 - [ ] Histórico de produtividade e estatísticas.
 - [ ] Melhorias no cronograma e na experiência mobile.
 

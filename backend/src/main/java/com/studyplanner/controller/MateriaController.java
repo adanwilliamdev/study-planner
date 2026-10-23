@@ -1,33 +1,45 @@
 package com.studyplanner.controller;
 
-import com.studyplanner.entity.Materia;
+import com.studyplanner.dto.MateriaRequest;
+import com.studyplanner.dto.MateriaResponse;
 import com.studyplanner.service.MateriaService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/materias")
 public class MateriaController {
 
-    @Autowired private MateriaService service;
+    private final MateriaService service;
+
+    public MateriaController(MateriaService service) {
+        this.service = service;
+    }
 
     @GetMapping
-    public List<Materia> listar(Authentication auth) {
+    public List<MateriaResponse> listar(Authentication auth) {
         return service.listar(auth.getName());
     }
 
     @PostMapping
-    public Materia criar(@RequestBody Materia m, Authentication auth) {
-        return service.criar(m, auth.getName());
+    @ResponseStatus(HttpStatus.CREATED)
+    public MateriaResponse criar(@Valid @RequestBody MateriaRequest req, Authentication auth) {
+        return service.criar(req, auth.getName());
     }
 
     @PutMapping("/{id}")
-    public Materia atualizar(@PathVariable Long id, @RequestBody Materia m) {
-        return service.atualizar(id, m);
+    public MateriaResponse atualizar(@PathVariable Long id, @Valid @RequestBody MateriaRequest req,
+                                     Authentication auth) {
+        return service.atualizar(id, req, auth.getName());
     }
 
     @DeleteMapping("/{id}")
-    public void deletar(@PathVariable Long id) { service.deletar(id); }
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletar(@PathVariable Long id, Authentication auth) {
+        service.deletar(id, auth.getName());
+    }
 }

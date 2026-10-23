@@ -1,34 +1,44 @@
 package com.studyplanner.controller;
 
-import com.studyplanner.entity.Cronograma;
+import com.studyplanner.dto.CronogramaRequest;
+import com.studyplanner.dto.CronogramaResponse;
 import com.studyplanner.service.CronogramaService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/cronogramas")
 public class CronogramaController {
 
-    @Autowired private CronogramaService service;
+    private final CronogramaService service;
+
+    public CronogramaController(CronogramaService service) {
+        this.service = service;
+    }
 
     @GetMapping
-    public List<Cronograma> listar(Authentication auth) {
+    public List<CronogramaResponse> listar(Authentication auth) {
         return service.listar(auth.getName());
     }
 
     @PostMapping
-    public Cronograma criar(@RequestBody Cronograma c,
-                            @RequestParam Long materiaId) {
-        return service.criar(c, materiaId);
+    @ResponseStatus(HttpStatus.CREATED)
+    public CronogramaResponse criar(@Valid @RequestBody CronogramaRequest req, Authentication auth) {
+        return service.criar(req, auth.getName());
     }
 
     @PutMapping("/{id}/concluir")
-    public Cronograma concluir(@PathVariable Long id) {
-        return service.concluir(id);
+    public CronogramaResponse concluir(@PathVariable Long id, Authentication auth) {
+        return service.concluir(id, auth.getName());
     }
 
     @DeleteMapping("/{id}")
-    public void deletar(@PathVariable Long id) { service.deletar(id); }
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletar(@PathVariable Long id, Authentication auth) {
+        service.deletar(id, auth.getName());
+    }
 }

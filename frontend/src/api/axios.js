@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: 'http://localhost:8080/api' })
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+export const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws'
+
+const api = axios.create({ baseURL: API_URL })
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
@@ -11,9 +14,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 || err.response?.status === 403) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+    // 401 em rotas protegidas = sessao expirada. (Em /auth/login o 401 e "senha errada".)
+    const naoEhAuth = !err.config?.url?.startsWith('/auth/')
+    if (err.response?.status === 401 && naoEhAuth) {
+      window.dispatchEvent(new Event('auth:expirada'))
     }
     return Promise.reject(err)
   }

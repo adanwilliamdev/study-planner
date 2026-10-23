@@ -1,34 +1,34 @@
 package com.studyplanner.controller;
 
-import com.studyplanner.dto.*;
+import com.studyplanner.dto.AuthResponse;
+import com.studyplanner.dto.LoginRequest;
+import com.studyplanner.dto.RegisterRequest;
 import com.studyplanner.service.AuthService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    @Autowired private AuthService authService;
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
 
     @PostMapping("/login")
-    public ResponseEntity<?> authenticate(@RequestBody LoginRequest req) {
-        try {
-            String jwt = authService.login(req.getEmail(), req.getSenha());
-            return ResponseEntity.ok(new AuthResponse(jwt));
-        } catch (Exception ex) {
-            return ResponseEntity.status(401).body("Credenciais inválidas");
-        }
+    public AuthResponse login(@Valid @RequestBody LoginRequest req) {
+        return authService.login(req);
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
-        try {
-            authService.registrar(req.getNome(), req.getEmail(), req.getSenha());
-            return ResponseEntity.ok("Usuário registrado com sucesso!");
-        } catch (RuntimeException ex) {
-            return ResponseEntity.badRequest().body(ex.getMessage());
-        }
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, String> register(@Valid @RequestBody RegisterRequest req) {
+        authService.registrar(req);
+        return Map.of("message", "Usuário registrado com sucesso");
     }
 }

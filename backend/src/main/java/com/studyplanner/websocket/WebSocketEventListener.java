@@ -41,7 +41,7 @@ public class WebSocketEventListener {
     public void handleSessionConnected(SessionConnectedEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
         String sessionId = accessor.getSessionId();
-        String username = extrairUsername(accessor);
+        String username = event.getUser() != null ? event.getUser().getName() : "anônimo";
 
         sessoesAtivas.put(sessionId, username);
         log.info("✅ Usuário conectado: '{}' (sessionId={}) — total online: {}",
@@ -99,13 +99,5 @@ public class WebSocketEventListener {
     /** Retorna um snapshot read-only das sessões ativas. */
     public Map<String, String> getSessoesAtivas() {
         return Map.copyOf(sessoesAtivas);
-    }
-
-    private String extrairUsername(StompHeaderAccessor accessor) {
-        // Principal é preenchido pelo Spring quando há autenticação no handshake.
-        // Como permitimos conexão anônima em /ws, pode ser null.
-        return accessor.getUser() != null
-                ? accessor.getUser().getName()
-                : "anônimo";
     }
 }

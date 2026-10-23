@@ -17,6 +17,7 @@ public class MaterialEstudo {
     @Enumerated(EnumType.STRING)
     private TipoMaterial tipo; // PDF, LINK, RESUMO
 
+    @Column(length = 1000)
     private String urlOuCaminho;
 
     @ManyToOne(fetch = FetchType.LAZY)

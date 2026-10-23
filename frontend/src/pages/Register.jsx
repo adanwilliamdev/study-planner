@@ -1,43 +1,68 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, Navigate } from 'react-router-dom'
+import { Loader2 } from 'lucide-react'
 import { register } from '../services/authService'
+import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
+import { mensagemDeErro } from '../lib/erros'
+import AuthShell from '../components/AuthShell'
 
 export default function Register() {
   const [form, setForm] = useState({ nome: '', email: '', senha: '' })
   const [erro, setErro] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const { isAuth } = useAuth()
+  const toast = useToast()
   const nav = useNavigate()
+
+  if (isAuth) return <Navigate to="/" replace />
+
+  const set = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setErro('')
+    setEnviando(true)
     try {
-      await register(form.nome, form.email, form.senha)
+      await register(form.nome.trim(), form.email.trim(), form.senha)
+      toast.sucesso('Conta criada! Entre com seu e-mail e senha.')
       nav('/login')
     } catch (err) {
-      setErro(err.response?.data || 'Erro ao registrar')
+      setErro(mensagemDeErro(err, 'Não foi possível criar a conta'))
+    } finally {
+      setEnviando(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md w-96">
-        <h1 className="text-2xl font-bold mb-6 text-center">Registrar</h1>
-        {erro && <p className="text-red-500 text-sm mb-4">{erro}</p>}
-        <input type="text" placeholder="Nome" value={form.nome}
-          onChange={e => setForm({ ...form, nome: e.target.value })} required
-          className="w-full p-2 border rounded mb-3" />
-        <input type="email" placeholder="E-mail" value={form.email}
-          onChange={e => setForm({ ...form, email: e.target.value })} required
-          className="w-full p-2 border rounded mb-3" />
-        <input type="password" placeholder="Senha" value={form.senha}
-          onChange={e => setForm({ ...form, senha: e.target.value })} required
-          className="w-full p-2 border rounded mb-4" />
-        <button className="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700">
-          Criar conta
+    <AuthShell
+      titulo="Criar conta"
+      subtitulo="Comece a organizar seus estudos."
+      rodape={<>Já tem conta? <Link to="/login" className="font-semibold text-brand-600 hover:underline">Entrar</Link></>}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {erro && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+        <div>
+          <label htmlFor="nome" className="field-label">Nome</label>
+          <input id="nome" autoComplete="name" value={form.nome} required maxLength={100} autoFocus
+            onChange={set('nome')} className="field" />
+        </div>
+        <div>
+          <label htmlFor="email" className="field-label">E-mail</label>
+          <input id="email" type="email" autoComplete="email" value={form.email} required
+            onChange={set('email')} className="field" />
+        </div>
+        <div>
+          <label htmlFor="senha" className="field-label">Senha</label>
+          <input id="senha" type="password" autoComplete="new-password" value={form.senha} required
+            minLength={6} maxLength={72} onChange={set('senha')} className="field" aria-describedby="dica-senha" />
+          <p id="dica-senha" className="mt-1 text-xs text-ink-mute">Mínimo de 6 caracteres.</p>
+        </div>
+        <button className="btn-primary w-full" disabled={enviando}>
+          {enviando && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+          {enviando ? 'Criando…' : 'Criar conta'}
         </button>
-        <p className="text-center text-sm mt-4">
-          Já tem conta? <Link to="/login" className="text-blue-600">Entrar</Link>
-        </p>
       </form>
-    </div>
+    </AuthShell>
   )
 }
