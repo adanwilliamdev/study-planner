@@ -1,36 +1,49 @@
-# Desenvolvimento (so o banco):  docker compose up -d db   +   mvn spring-boot:run
-# Tudo em containers:            docker compose up -d --build
+# Sobe tudo com:  cp .env.example .env  (edite os valores)  &&  docker compose up --build
 services:
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: studyplanner
-      POSTGRES_USER: ${DB_USER:-studyplanner}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-studyplanner}
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: studyplanner
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
     volumes:
-      - dados:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-studyplanner} -d studyplanner"]
+      test: ["CMD-SHELL", "pg_isready -U studyplanner -d studyplanner"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 10
+    restart: unless-stopped
 
-  app:
-    build: .
+  backend:
+    build: ./backend
     depends_on:
       db:
         condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:postgresql://db:5432/studyplanner
-      DB_USER: ${DB_USER:-studyplanner}
-      DB_PASSWORD: ${DB_PASSWORD:-studyplanner}
-      APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
-      # use true quando servir por HTTPS (atras de um proxy com TLS)
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      DB_USER: studyplanner
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env (minimo 32 caracteres)}
+      CORS_ALLOWED_ORIGINS: ${APP_URL:-http://localhost:3000}
+      TZ: ${TZ:-America/Sao_Paulo}
+      JAVA_TOOL_OPTIONS: -Duser.timezone=${TZ:-America/Sao_Paulo}
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080 && printf \"GET /actuator/health HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q UP <&3'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
     ports:
-      - "8080:8080"
+      - "${APP_PORT:-3000}:80"
+    restart: unless-stopped
 
 volumes:
-  dados:
+  pgdata:
