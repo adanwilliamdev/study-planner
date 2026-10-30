@@ -1,24 +1,25 @@
-# Java / Maven
-backend/target/
-*.class
-*.jar
-!mvnw
-!.mvn/wrapper/maven-wrapper.jar
+# Maven
+target/
 
-# Node
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-
-# IDE
+# IDEs
 .idea/
-.vscode/
 *.iml
-*.iws
+.vscode/
+.classpath
+.project
+.settings/
 
-# OS
-.DS_Store
-Thumbs.db
-# Env
+# Gerados pelo Vaadin (recriados no build)
+node_modules/
+frontend/generated/
+package.json
+package-lock.json
+vite.config.ts
+vite.generated.ts
+tsconfig.json
+types.d.ts
+src/main/bundles/
+
+# Ambiente
 .env
-.env.local
+*.log
