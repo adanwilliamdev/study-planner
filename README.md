@@ -4,9 +4,8 @@ Aplicação full-stack para organização da rotina de estudos, com autenticaç�
 
 ![Java](https://img.shields.io/badge/Java-17-orange?style=flat-square&logo=openjdk)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2-brightgreen?style=flat-square&logo=springboot)
-![React](https://img.shields.io/badge/React-18-blue?style=flat-square&logo=react)
-![Vite](https://img.shields.io/badge/Vite-5-purple?style=flat-square&logo=vite)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?style=flat-square&logo=tailwindcss)
+![JavaScript](https://img.shields.io/badge/JavaScript-ES_Modules-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
+![CSS3](https://img.shields.io/badge/CSS3-puro-1572B6?style=flat-square&logo=css3)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
 ---
@@ -32,17 +31,18 @@ Aplicação full-stack para organização da rotina de estudos, com autenticaç�
 | Persistência | Spring Data JPA, Hibernate, H2 |
 | Comunicação em tempo real | Spring WebSocket, STOMP, SockJS |
 | Documentação | Springdoc OpenAPI / Swagger |
-| Frontend | React 18, JavaScript, Vite 5 |
-| Estilização | Tailwind CSS 3 |
-| Requisições HTTP | Axios |
-| Build | Maven, npm |
+| Frontend | JavaScript puro (ES modules), HTML5, sem framework e sem etapa de build |
+| Estilização | CSS puro (variáveis CSS, tema claro/escuro) |
+| Requisições HTTP | Fetch API |
+| Tempo real (cliente) | WebSocket nativo com um cliente STOMP mínimo (`js/ws.js`) |
+| Build | Maven (backend); o frontend não precisa de build |
 
 ## 🏗️ Arquitetura
 
 A aplicação utiliza uma arquitetura em camadas, separando as responsabilidades do backend.
 
 ```text
-Frontend (React + Vite)
+Frontend (JavaScript + CSS puros)
         │
         ├── HTTP / REST
         └── WebSocket / STOMP
@@ -79,13 +79,19 @@ study-planner/
 │   └── pom.xml
 │
 ├── frontend/
-│   ├── src/
-│   │   ├── api/
-│   │   ├── components/
-│   │   ├── context/
-│   │   ├── pages/
-│   │   └── services/
-│   └── package.json
+│   ├── index.html
+│   ├── favicon.svg
+│   ├── css/
+│   │   └── style.css          # todo o estilo (tokens, componentes, layout)
+│   └── js/
+│       ├── main.js            # ponto de entrada e tabela de rotas
+│       ├── config.js          # URLs do backend
+│       ├── router.js          # roteador por hash (#/tarefas)
+│       ├── api.js             # fetch + serviços da API
+│       ├── auth.js · tema.js · toast.js · modal.js · ws.js · dom.js · icones.js
+│       ├── componentes/       # layout, pomodoro, segmentado, estados...
+│       ├── paginas/           # login, register, dashboard, materias, tarefas, cronograma
+│       └── lib/               # cores, datas, erros
 │
 └── README.md
 ```
@@ -96,8 +102,7 @@ study-planner/
 
 - JDK 17 ou superior
 - Maven 3.9+
-- Node.js 18+
-- npm 9+
+- Python 3 (ou qualquer servidor de arquivos estáticos)
 - Git
 
 ### 1. Clonar o repositório
@@ -120,11 +125,14 @@ Backend: `http://localhost:8080`
 
 Em outro terminal, na pasta raiz do projeto:
 
+O frontend é só HTML, CSS e JavaScript: não há `npm install` nem build. Basta servir a pasta `frontend` na porta **5173** (a porta liberada no CORS do backend):
+
 ```bash
 cd frontend
-npm install
-npm run dev
+python3 -m http.server 5173
 ```
+
+Qualquer outro servidor estático serve (extensão Live Server do VS Code, `npx serve -l 5173`, Nginx...). Os módulos ES não funcionam abrindo o `index.html` direto do disco (`file://`), por isso o servidor é necessário.
 
 Frontend: `http://localhost:5173`
 
@@ -166,7 +174,7 @@ Variáveis de ambiente:
 | `JWT_SECRET` | Chave de assinatura do JWT, **mínimo de 32 caracteres**. O valor padrão serve apenas para desenvolvimento local. |
 | `CORS_ALLOWED_ORIGINS` | Origens permitidas, separadas por vírgula (padrão: `http://localhost:5173`). |
 
-No frontend, `VITE_API_URL` e `VITE_WS_URL` (veja `frontend/.env.example`) permitem apontar para outro backend.
+No frontend, `js/config.js` define `API_URL` e `WS_URL` (substitui o antigo `.env`). Se servir o frontend em outra origem, ajuste também `CORS_ALLOWED_ORIGINS` no backend.
 
 **Documentação da API:**
 
@@ -199,7 +207,7 @@ Authorization: Bearer <token>
 
 Erros são devolvidos em JSON no formato `{ "message": "...", "errors": { "campo": "..." } }`.
 
-O WebSocket utiliza o endpoint `/ws`. O frame STOMP `CONNECT` deve levar o cabeçalho `Authorization: Bearer <token>`, e as notificações de prazo são entregues individualmente em `/user/queue/notifications`.
+O WebSocket utiliza o endpoint `/ws` (o navegador conecta direto no transporte WebSocket puro do SockJS, em `/ws/websocket`, sem biblioteca). O frame STOMP `CONNECT` deve levar o cabeçalho `Authorization: Bearer <token>`, e as notificações de prazo são entregues individualmente em `/user/queue/notifications`.
 
 ## 🔒 Segurança
 
